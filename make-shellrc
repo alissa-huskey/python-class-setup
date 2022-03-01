@@ -16,8 +16,15 @@ rootdir=$(cd "${0%/*}/." && pwd -P)
 
 # print an error message and exit
 abort() {
-  printf "\033[31mError\033[0m %s" "${*}"
+  printf "\033[31mError\033[0m %s\n" "${*}"
   exit 1
+}
+
+# print an info message in verbose mode
+info() {
+  is_verbose || return
+
+  printf "\033[34m>\033[0m %s\n" "${*}"
 }
 
 # succeeds if command is available
@@ -35,7 +42,8 @@ usage() {
 
   --shellrc [FILE]      Where to write the file
   --shell [SHELL]       Shell to generate the file for (bash, zsh)
-  -n, --dry-run         Do not make changes
+  -v, --verbose         Verbose mode
+  -n, --dry-run         Do not make changes, just preview them
   -h, --help            Show this help information
 
 EOF
@@ -90,6 +98,11 @@ is_dry_run() {
   [ -n "${dry_run_mode}" ]
 }
 
+# succeeds if in verbose mode
+is_verbose() {
+  [ -n "${verbose_mode}" ]
+}
+
 # backup $shellrc to $backup_file
 backup() {
   is_dry_run && return
@@ -107,6 +120,7 @@ args() {
       --shellrc)    sn=2 shellrc="$2"            ;;
       --shell)      sn=2 shell="$2"              ;;
       -n|--dry-run) sn=1 dry_run_mode=true       ;;
+      -v|--verbose) sn=1 verbose_mode=true       ;;
       -h|--help)    usage ; exit                 ;;
       *) : ;;
     esac
@@ -142,20 +156,36 @@ find_shellrc() {
 
 # get a list of rc files to add
 rcs_to_add() {
-  local rc_file pat script
+  local rc_file pat scripts script add_file
 
-  is_dry_run && return
+  is_dry_run || touch "${shellrc}"
 
-  touch "${shellrc}"
-  script='/# mksh: check if present/ s/^[[:space:]]*(.*)#.*$/\1/p'
+  scripts=( \
+    '/# mksh: check if present/ s/^[[:space:]]*(.*)#.*$/\1/p' \
+    '/^# mksh: check for / s///p' \
+  )
 
-  for rc_file in "${rootdir}/rcs"/*.sh; do
-    if read -r pat < <(sed -nEe "${script}" "${rc_file}"); then
-      if ! grep -q "${pat}" "${shellrc}"; then
-        files+=( "${rc_file}" )
+  for rc_file in "${rootdir}/rcs"/*.sh "${rootdir}/rcs"/*."${shell}"; do
+
+    info "Including: ${rc_file##*/}"
+
+    add_file=true
+
+    for script in "${scripts[@]}"; do
+      if read -r pat < <(sed -nEe "${script}" "${rc_file}"); then
+        if grep -q "${pat}" "${shellrc}"; then
+          add_file=false
+        fi
       fi
+    done
+
+    if [[ "${add_file}" == "true" ]]; then
+      files+=( "${rc_file}" )
     fi
+
   done
+
+  prompt || exit
 }
 
 # generate a shellrc file
@@ -163,7 +193,7 @@ generate() {
   local file
 
   for file in "${shellrc}" "${files[@]}"; do
-    sed -Ee '/# mksh: check if present/ s///' "${file}"
+    sed -Ee '/# mksh: check if present/ s/// ; /^# mksh: check for /d' "${file}"
   done
 }
 
@@ -186,12 +216,14 @@ preview() {
   generate
 
   printf "\033[32m=======================================================================\033[0m\n\n"
-
-  prompt "Save to ${shellrc}? "
 }
 
 # backup the $shellrc file then write the generated contents to $shellrc
 save() {
+  is_dry_run && return
+
+  prompt "Save to ${shellrc}? " || return
+
   local tmpfile="${TEMPDIR:-.}/dot-shellrc"
 
     backup
@@ -200,7 +232,7 @@ save() {
 }
 
 main() {
-  local shellrc shell backup_file timestamp
+  local shellrc shell backup_file timestamp args
   local -a files
 
   args ${1:+"$@"}
@@ -210,15 +242,16 @@ main() {
   timestamp=$(date +%Y.%m.%d.%H.%M.%S)
   backup_file="${shellrc/\/.//}-${timestamp}"
 
-  show_var shell shellrc backup_file 0
+  args="${*}"
+
+  show_var shell shellrc backup_file args
 
   prompt || return
 
   rcs_to_add
 
-  if preview; then
-    save
-  fi
+  preview | ${PAGER:-less}
+  save
 }
 
 main ${1:+"$@"}
