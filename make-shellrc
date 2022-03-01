@@ -1,27 +1,82 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # TODO:
 # [x] determine shell
 # [x] find existing .[zsh|bash]rc
 # [x] --shellrc
 # [x] iterate through parts of file, include if not included
+# [x] add usage
 # [ ] figure out how to run remotely (seperate repo?)
 # [ ] iterate through .zsh / .bash only files
 # [ ] add --include and --exclude flags
-# [ ] add sed to check mksh: check for
-# [ ] add usage
+# [ ] add sed to check "mksh: check for"
 
 set -Eeo pipefail # fail on errors, even within pipes
-read -r rootdir < <(cd "${0%/*}/." && pwd -P) || :
+rootdir=$(cd "${0%/*}/." && pwd -P)
 
+# print an error message and exit
 abort() {
   printf "\033[31mError\033[0m %s" "${*}"
   exit 1
 }
 
+# succeeds if command is available
+has() {
+  command -v $1 > /dev/null
+}
+
+# print help
+usage() {
+  cat <<-EOF
+
+  make-shellrc -- generate shell startup file
+
+  OPTIONS
+
+  --shellrc [FILE]      Where to write the file
+  --shell [SHELL]       Shell to generate the file for (bash, zsh)
+  -n, --dry-run         Do not make changes
+  -h, --help            Show this help information
+
+EOF
+}
+
+# replace mktemp command if missing
+mktemp() {
+  # if has mktemp; then
+  #   command mktemp ${1:+"$@"}
+  #   return
+  # fi
+
+  local tmpdir tmp_path var is_dir
+
+
+  for var in TMPDIR TEMP TMP; do
+    eval 'tmpdir=$'"$var"
+    if [ -n "${tmpdir}" ] && [ -d "${tmpdir}" ]; then
+      # done -- just need to assign tmpdir
+      break
+    fi
+  done
+
+  tmp_path="${tmpdir}mk-shellrc-${timestamp}"
+  echo "${tmp_path}"
+
+  is_dry_run && return
+
+  # shellcheck disable=SC2076
+  if [[ "-d" =~ "${*}" ]]; then
+    mkdir "${tmp_path}"
+  else
+    touch "${tmp_path}"
+  fi
+}
+
+# print a variable name and value
+# usage: show_var VAR...
 show_var() {
   local var val
-  while [[ $# -gt 0 ]]; do
+  while [ $# -gt 0 ]; do
     var="$1"
     eval 'val=$'"$1"
 
@@ -30,35 +85,40 @@ show_var() {
   done
 }
 
+# succeeds if in dry run mode
 is_dry_run() {
-  [[ -n "${dry_run_mode}" ]]
+  [ -n "${dry_run_mode}" ]
 }
 
+# backup $shellrc to $backup_file
 backup() {
   is_dry_run && return
 
-  [[ -f "$shellrc" ]] || return
+  [ -f "$shellrc" ] || return
 
   cp "${shellrc}" "${backup_file}"
 }
 
+# parse args
 args() {
   local sn=1
 
-  while [[ $# -gt 0 ]]; do case $1 in
+  while [ $# -gt 0 ]; do case $1 in
       --shellrc)    sn=2 shellrc="$2"            ;;
       --shell)      sn=2 shell="$2"              ;;
       -n|--dry-run) sn=1 dry_run_mode=true       ;;
+      -h|--help)    usage ; exit                 ;;
       *) : ;;
     esac
     shift $sn
   done
 }
 
+# figure out what shell the current terminal uses, unless $shell is already defined
 find_shell() {
-  [[ -n "$shell" ]] && return
+  [ -n "$shell" ] && return
 
-  if [[ -n "${shellrc}" ]]; then
+  if [ -n "${shellrc}" ]; then
     shell="${shellrc##*/}"
     shell="${shell#.}"
     shell="${shell%rc}"
@@ -66,19 +126,21 @@ find_shell() {
     shell=${SHELL##*/}
   fi
 
-  [[ -z "${shell}" ]] && abort "Unable to determine shell. Please specify with --shell or --shellrc."
+  [ -z "${shell}" ] && abort "Unable to determine shell. Please specify with --shell or --shellrc."
 
   if ! [[ "${shell}" =~ ^(bash|zsh)$ ]]; then
     abort "Unsupported shell: '${shell}'. (If this seems like a mistake, specify with --shell.)"
   fi
 }
 
+# find the rc file for the users shell unless $shellrc is already defined
 find_shellrc() {
-  [[ -n "$shellrc" ]] && return
+  [ -n "$shellrc" ] && return
 
   shellrc="$HOME/.${shell}rc"
 }
 
+# get a list of rc files to add
 rcs_to_add() {
   local rc_file pat script
 
@@ -96,6 +158,7 @@ rcs_to_add() {
   done
 }
 
+# generate a shellrc file
 generate() {
   local file
 
@@ -104,6 +167,7 @@ generate() {
   done
 }
 
+# prompt the user with a question
 prompt() {
   local question="${1:-Continue?}"
   printf "%s [yN] " "${question}"
@@ -112,6 +176,7 @@ prompt() {
   [[ "${ok}" =~ ^[yY]$ ]]
 }
 
+# preview the generated shellrc contents
 preview() {
 
   printf "\n\n\033[32m=======================================================================\033[0m\n"
@@ -125,6 +190,7 @@ preview() {
   prompt "Save to ${shellrc}? "
 }
 
+# backup the $shellrc file then write the generated contents to $shellrc
 save() {
   local tmpfile="${TEMPDIR:-.}/dot-shellrc"
 
@@ -134,15 +200,17 @@ save() {
 }
 
 main() {
-  local shellrc shell backup_file
+  local shellrc shell backup_file timestamp
   local -a files
 
   args ${1:+"$@"}
   find_shell
   find_shellrc
-  backup_file="${shellrc/\/.//}-$(date +%s)"
 
-  show_var shell shellrc backup_file
+  timestamp=$(date +%Y.%m.%d.%H.%M.%S)
+  backup_file="${shellrc/\/.//}-${timestamp}"
+
+  show_var shell shellrc backup_file 0
 
   prompt || return
 
@@ -154,4 +222,3 @@ main() {
 }
 
 main ${1:+"$@"}
-
