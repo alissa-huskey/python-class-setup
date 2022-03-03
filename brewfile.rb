@@ -2,7 +2,7 @@
 #
 # updates can be found at:
 # https://github.com/alissa-huskey/python-class/blob/master/docs/tools/brewfile.rb
-# #
+#
 
 cask "visual-studio-code"                 # editor
 brew "git"                                # most recent git version
@@ -11,6 +11,9 @@ brew "mas"                                # app store CLI tool
 brew "pyenv"                              # install and manage Python versions
 brew "autoenv"                            # automatically source .env files on cd
 brew "bat"                                # command line file viewer with syntax highlighting
+
+tap "alissa-huskey/autoenv" "https://github.com/alissa-huskey/autoenv"
+brew "alissa-huskey/autoenv/autoenv-revert"
 
 # python dependencies
 # -------------------

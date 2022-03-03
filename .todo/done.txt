@@ -6,3 +6,4 @@ x 2022-03-02 2022-03-02 add add sed to check 'mksh: check for'
 x 2022-03-02 2022-03-02 list optional rcs and prompt for user to choose
 x 2022-03-02 2022-03-02 list rc file descriptions from notes
 x 2022-03-02 2022-03-02 make prompt.* rcs optional
+x 2022-03-02 2022-03-02 add autoenv to brewfile

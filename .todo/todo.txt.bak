@@ -1,6 +1,5 @@
-2022-03-02 figure out how to run remotely
 2022-03-02 add --include and --exclude flags
 2022-03-02 document the various "# mksh" rc comments and what they do
 2022-03-02 add "#mksh: include if"
-2022-03-02 make prompts color aware
-2022-03-02 add autoenv to brewfile
+x 2022-03-02 2022-03-02 add autoenv to brewfile
+2022-03-02 maybe add asdf to rcs
