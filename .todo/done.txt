@@ -1,0 +1,8 @@
+x 2020-09-08 2020-09-08 and I need to feed the cat @kitties
+x 2020-09-10 2020-09-08 testin mah colors @colors +ftw
+x 2020-09-10 2020-09-08 shit I need to finish the laudry note:woops!
+x 2022-03-02 2022-03-02 iterate through *.zsh / *.bash only files
+x 2022-03-02 2022-03-02 add add sed to check 'mksh: check for'
+x 2022-03-02 2022-03-02 list optional rcs and prompt for user to choose
+x 2022-03-02 2022-03-02 list rc file descriptions from notes
+x 2022-03-02 2022-03-02 make prompt.* rcs optional

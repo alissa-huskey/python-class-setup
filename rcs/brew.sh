@@ -1,6 +1,7 @@
+# mksh: include if $(uname -s) == Darwin and $(uname -m) =~ arm
 
 
-# homebrew with M1 chip
+# homebrew -- add to path (on macOS with M1 chip)
 # --------------------------------------------------------------------
 
 if [[ -d /opt/homebrew/bin ]] ; then

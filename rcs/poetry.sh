@@ -1,7 +1,8 @@
 
 
-# poetry
+# poetry -- add to path and add poetry_activate function
 # --------------------------------------------------------------------
+# https://python-poetry.org/docs/
 
 if [[ -d $HOME/.poetry/bin ]]; then
 	PATH="$HOME/.poetry/bin:$PATH" # mksh: check if present
