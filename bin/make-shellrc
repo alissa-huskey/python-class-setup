@@ -4,7 +4,7 @@
 #
 
 set -Eeo pipefail # fail on errors, even within pipes
-rootdir=$(cd "${0%/*}/." && pwd -P)
+rootdir=$(cd "${0%/*}/.." && pwd -P)
 
 # print an error message and exit
 abort() {
@@ -324,7 +324,7 @@ save() {
 }
 
 main() {
-  local shellrc shell backup_file timestamp args
+  local shellrc shell backup_file timestamp
   local -a files chosen
 
   args ${1:+"$@"}
@@ -334,9 +334,7 @@ main() {
   timestamp=$(date +%Y.%m.%d.%H.%M.%S)
   backup_file="${shellrc/\/.//}-${timestamp}"
 
-  args="${*}"
-
-  show_var shell shellrc backup_file args
+  show_var shell shellrc backup_file
 
   # prompt || return
 

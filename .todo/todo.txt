@@ -1,4 +1,3 @@
 2022-03-02 add --include and --exclude flags
 2022-03-02 document the various "# mksh" rc comments and what they do
 2022-03-02 add "#mksh: include if"
-2022-03-04 make bin dir and dependencies dir
