@@ -63,7 +63,7 @@ mktemp() {
 
   tmp_path="${tmpdir}mk-shellrc-${timestamp}"
   echo "${tmp_path}"
-
+autoeni
   is_dry_run && return
 
   # shellcheck disable=SC2076
@@ -221,6 +221,8 @@ file_info() {
   fi
 
   name="${file##*/}"
+  name="${name##*_}" # strip preceeding N_ from the name (for odering)
+
   desc="$(grep -B1 '^# -*$' "${file}" | sed -Ee '$d ; s/# //; s/^.* -- //')"
 
   printf "%s %-*s : %-*s" "${symbol}" $length "${name}" 45 "${desc}"
