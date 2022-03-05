@@ -4,8 +4,8 @@
 # --------------------------------------------------------------------
 # https://python-poetry.org/docs/
 
-if [[ -d $HOME/.poetry/bin ]]; then
-	PATH="$HOME/.poetry/bin:$PATH" # mksh: check if present
+if [[ -d "$HOME/.poetry/bin" ]]; then
+	PATH="$HOME/.poetry/bin:$PATH"  # mksh: check if present
   export PATH
 fi
 

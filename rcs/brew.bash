@@ -1,0 +1,17 @@
+# mksh: include if $(uname -s) == Darwin
+
+
+# homebrew -- setup completions
+# --------------------------------------------------------------------
+# https://docs.brew.sh/Shell-Completion
+
+if command -v brew >/dev/null; then
+  HOMEBREW_PREFIX="$(brew --prefix)"
+  if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
+    source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
+  else
+    for file in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
+      [[ -r "${file}" ]] && source "${file}"
+    done
+  fi
+fi

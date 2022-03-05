@@ -2,3 +2,5 @@
 2022-03-02 document the various "# mksh" rc comments and what they do
 2022-03-02 add "#mksh: include if"
 2022-03-02 maybe add asdf to rcs
+2022-03-04 make sure brew.sh is first
+2022-03-04 make bin dir and dependencies dir

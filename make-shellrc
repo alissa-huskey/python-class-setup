@@ -157,7 +157,11 @@ find_shell() {
 find_shellrc() {
   [ -n "$shellrc" ] && return
 
-  shellrc="$HOME/.${shell}rc"
+  case "${shell}" in
+    zsh)   shellrc="$HOME/.zshrc"          ;;
+    bash)  shellrc="$HOME/.bash_profile"   ;;
+    *)     shellrc="$HOME/.profile"        ;;
+  esac
 }
 
 # get a list of rc files to add
