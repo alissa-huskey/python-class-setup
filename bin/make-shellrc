@@ -6,22 +6,16 @@
 set -Eeo pipefail # fail on errors, even within pipes
 rootdir=$(cd "${0%/*}/.." && pwd -P)
 
-# print an error message and exit
-abort() {
-  printf "\033[31mError\033[0m %s\n" "${*}"
-  exit 1
+source ${rootdir}/bin/utils.sh
+
+# succeeds if in verbose mode
+is_never_ask() {
+  [ -n "${never_ask}" ]
 }
 
-# print an info message in verbose mode
-info() {
-  is_verbose || return
-
-  printf "\033[34m>\033[0m %s\n" "${*}"
-}
-
-# succeeds if command is available
-has() {
-  command -v $1 > /dev/null
+# succeeds if in verbose mode
+is_always_ask() {
+  [ -n "${always_ask}" ]
 }
 
 # print help
@@ -32,11 +26,13 @@ usage() {
 
   OPTIONS
 
-  -r|--rc [FILE]        Where to write the file
-  -s|--shell [SHELL]    Shell to generate the file for (bash, zsh)
-  -l|--list             List available rc files to include
-  -i|--interactive      Ask about all files to include. (default is to only prompt if optional)
+  -r, --rc [FILE]       Where to write the file
+  -s, --shell [SHELL]   Shell to generate the file for (bash, zsh)
+  -l, --list            List available rc files to include
+  -i, --interactive     Ask about all files to include. (default is to only prompt if optional)
+  -a, --auto            Exclude all optional files and do not prompt.
   -v, --verbose         Verbose mode
+  -q, --quiet           Quiet mode   
   -n, --dry-run         Do not make changes, just preview them
   -h, --help            Show this help information
 
@@ -63,7 +59,6 @@ mktemp() {
 
   tmp_path="${tmpdir}mk-shellrc-${timestamp}"
   echo "${tmp_path}"
-autoeni
   is_dry_run && return
 
   # shellcheck disable=SC2076
@@ -72,34 +67,6 @@ autoeni
   else
     touch "${tmp_path}"
   fi
-}
-
-# print a variable name and value
-# usage: show_var VAR...
-show_var() {
-  local var val
-  while [ $# -gt 0 ]; do
-    var="$1"
-    eval 'val=$'"$1"
-
-    printf "\033[33m%s\033[0m = '%s'\n" "$var" "$val"
-    shift
-  done
-}
-
-# succeeds if in dry run mode
-is_dry_run() {
-  [ -n "${dry_run_mode}" ]
-}
-
-# succeeds if in verbose mode
-is_always_ask() {
-  [ -n "${always_ask}" ]
-}
-
-# succeeds if in verbose mode
-is_verbose() {
-  [ -n "${verbose_mode}" ]
 }
 
 # succeeds if in verbose mode
@@ -123,14 +90,17 @@ args() {
   while [ $# -gt 0 ]; do case $1 in
       -r|--rc)           sn=2 shellrc="$2"            ;;
       -s|--shell)        sn=2 shell="$2"              ;;
-      -l|--list)         sn=1 list_mode=true          ;;
-      -i|--interactive)  sn=1 always_ask=true         ;;
-      -n|--dry-run)      sn=1 dry_run_mode=true       ;;
-      -v|--verbose)      sn=1 verbose_mode=true       ;;
-      -h|--help)         usage ; exit                 ;;
+      -l|--list)              list_mode=true          ;;
+      -i|--interactive)       always_ask=true         ;;
+      -a|--auto)              never_ask=true          ;;
+      -n|--dry-run)           dry_run_mode=true       ;;
+      -q|--quiet)             quiet_mode=true         ;;
+      -v|--verbose)           verbose_mode=true       ;;
+      -h|--help)              usage ; exit            ;;
       *) : ;;
     esac
     shift $sn
+    sn=1
   done
 }
 
@@ -167,6 +137,11 @@ find_shellrc() {
 # get a list of rc files to add
 rcs_to_add() {
   local rc_file pat scripts script add_file
+  local -a optional_files
+
+  if ! is_never_ask; then
+    optional_files=( "${rootdir}/rcs/optional"/*."${shell}" "${rootdir}/rcs/optional"/*.sh )
+  fi
 
   is_dry_run || touch "${shellrc}"
 
@@ -176,8 +151,7 @@ rcs_to_add() {
   )
 
   # iterate through the list of all files
-  for rc_file in "${rootdir}/rcs"/*.sh "${rootdir}/rcs/optional"/*."${shell}" "${rootdir}/rcs/optional"/*.sh; do
-
+  for rc_file in "${rootdir}/rcs"/*.sh "${optional_files[@]}"; do
 
     add_file=true
 
@@ -192,13 +166,6 @@ rcs_to_add() {
     done
 
     if [[ "${add_file}" == "true" ]]; then
-
-      # add to the *_rclist arrays
-      if [[ "${rc_file}" =~ optional ]]; then
-        opt_rclist+=( "${rc_file}" )
-      else
-        req_rclist+=( "${rc_file}" )
-      fi
 
       # add to files array
       files+=( "${rc_file}" )
@@ -253,12 +220,26 @@ interactive() {
       nl=""
     fi
 
-    file_info "$file" $maxlen $nl
+    if is_never_ask && is_optional "${file}"; then
+      continue
+    fi
+
+    if ! is_quiet || is_optional "${file}"; then
+      file_info "$file" $maxlen $nl
+    fi
 
     if is_always_ask || is_optional "${file}"; then
       prompt " Add?" || continue
       chosen+=( "${file}" )
     fi
+  done
+
+  preview | ${PAGER:-less}
+}
+
+auto() {
+  for file in "${files[@]}"; do
+    chosen+=( "${file}" )
   done
 }
 
@@ -314,12 +295,14 @@ preview() {
 save() {
   is_dry_run && return
 
-  prompt "Save to ${shellrc}? " || return
+  if ! is_never_ask; then
+    prompt "Save to ${shellrc}? " || return
+  fi
 
   local tmpfile="${TEMPDIR:-.}/dot-shellrc"
 
     backup
-    generate > "${tmpfile}"
+    generate "${chosen[@]}" > "${tmpfile}"
     mv "${tmpfile}" "${shellrc}"
 }
 
@@ -345,8 +328,12 @@ main() {
     return
   fi
 
-  interactive
-  preview | ${PAGER:-less}
+  if is_never_ask; then
+    auto
+  else
+    interactive
+  fi
+
   save
 }
 

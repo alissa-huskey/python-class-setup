@@ -1,0 +1,301 @@
+#!/bin/bash
+#
+# setup-mac -- mac setup script
+#
+
+set -Eeo pipefail # fail on errors, even within pipes
+rootdir=$(cd "${0%/*}/.." && pwd -P)
+
+source "${rootdir}/bin/utils.sh"
+
+# parse args
+args() {
+  local sn=1
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --reset)                reset_progress          ;;
+      -n|--dry-run)           dry_run_mode=true       ;;
+      -v|--verbose)           verbose_mode=true       ;;
+      -h|--help)              usage ; exit            ;;
+    esac
+    shift $sn
+    sn=1
+  done
+}
+
+# initialize the state file
+init() {
+  local state_dir=${state_file%/*}
+
+  show_var state_file state_dir
+
+  run mkdir -p "${state_dir}"
+  run touch "${state_file}"
+}
+
+# save progress
+save() {
+  if is_dry_run; then
+    cmd echo $1 > "${state_file}"
+    return
+  fi
+
+  echo $1 >> ${state_file}
+}
+
+# create shell startup file
+is_done_1() {
+  false
+}
+
+pre_1() {
+  printf "    The make-shrc script will generate/append to your ~/.zshrc\n"
+  printf "    or ~/.bash_profile file. To run the script:\n\n"
+}
+
+post_1() {
+  printf "    Run manually from another terminal window for more\n"
+  printf "    options and control.\n\n"
+  printf "    For help try ./bin/make-shrc --help\n"
+}
+
+# create shell startup file
+do_1() {
+  run ${rootdir}/bin/make-shellrc --auto
+}
+
+pre_2() {
+  printf "    \033[31mImportant: This will take a long time\033[0m\n\n"
+
+  printf "    This could take several hours, so you might want to run\n"
+  printf "    it overnight. For laptops, make sure the power cable is\n"
+  printf "    plugged in and the lid is open.\n\n\n"
+}
+
+# install xcode
+is_done_2() {
+  local p
+
+  has xcode-select || abort "Missing command: xcode-select"
+
+  has xcrun || return 1
+  has xcodebuild || return 1
+  xcodebuild -checkFirstLaunchStatus 2> /dev/null || return 1
+
+  p=$(xcode-select -p)
+}
+
+# install xcode
+do_2() {
+  run xcode-select --install \
+    && run xcodebuild -runFirstLaunch
+}
+
+# install homebrew
+is_done_3() {
+  has brew
+}
+
+# install homebrew
+do_3() {
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+}
+
+# install python prerequisites
+is_done_4() {
+  brew bundle check --file "${rootdir}/dependencies/brew-python.rb" > /dev/null
+}
+
+# install python prerequisites
+do_4() {
+  brew bundle install --file ${rootdir}/dependencies/brew-python.rb
+}
+
+# install python
+is_done_5() {
+  has asdf \
+    && asdf plugin list | grep -qx python \
+    && asdf list python | grep -qw 3.8.11
+}
+
+# install python
+do_5() {
+  has asdf || brew install asdf
+  asdf plugin list | grep -qx python || asdf plugin add python
+  asdf install python 3.8.11
+  asdf python global 3.8.11
+}
+
+# install poetry
+is_done_6() {
+  has poetry
+}
+
+# install poetry
+do_6() {
+  curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+}
+
+# install extra packages
+is_done_7() {
+  brew bundle check --file "${rootdir}/dependencies/brewfile.rb" > /dev/null
+}
+
+# install extra packages
+do_7() {
+  brew bundle install --file ${rootdir}/dependencies/brewfile.rb
+}
+
+# success if the step is complete
+is_done() {
+  local step_no="$1"
+
+  grep -qx "$step_no" "${state_file}" && return
+
+  has "is_done_$step_no" || return 1
+  if eval "is_done_$step_no"; then
+    save $step_no
+    return
+  fi
+
+  return 1
+}
+
+checklist() {
+  local desc mark step_no=1
+
+  printf "\n\033[1mMac Setup\033[0m\n\n"
+
+  while read -r desc; do
+    [[ -z "$desc" ]] && continue
+
+    is_done $step_no && mark="✅" || mark="⬜️"
+    printf "%d. %s  %s\n" $step_no $mark "$desc"
+
+    if [[ -z "$on_step" ]] && ! is_done $step; then
+      on_step=$step_no
+    fi
+
+    step_no=$((step_no + 1))
+  done < ${rootdir}/bin/mac-steps.txt
+
+  printf "\n\n"
+}
+
+# clear all marked progress
+reset_progress() {
+  echo > "${state_file}"
+}
+
+# mark a step as done
+check() {
+  save $1
+}
+
+# mark a step as not done
+uncheck() {
+  sed -i'.bak' -e "/^${1}$/d" "${state_file}"
+  rm "${state_file}.bak"
+}
+
+# success if this is a valid step number
+valid_step() {
+  local step_no="$1"
+
+  if [[ $step_no =~ ^[0-9]+$ ]] && \
+     [[ $step_no -ge 1 ]] && \
+     [[ $step_no -lt $(cat ${rootdir}/bin/mac-steps.txt | wc -l) ]]; then 
+    return
+  fi
+
+  error "Not a valid step number: '${step_no}'"
+  pause
+  return 1
+}
+
+show_step() {
+  local step_no="$1" func pre_func post_func response
+  func="do_${step_no}" pre_func="pre_${step_no}" post_func="post_${step_no}"
+
+  if ! valid_step ${step_no}; then
+    return
+  fi
+
+  has "$func" || abort "Don't know how to do step: ${step_no}"
+
+  printf "\n\n\033[1mStep %d: " $step_no
+  sed -ne "${step_no} p" ${rootdir}/bin/mac-steps.txt
+  printf "\033[0m\n\n"
+
+
+  has "$pre_func" && "$pre_func"
+
+  declare -f $func | sed -Ee '1,2d ; $d ; s/run //g ; s/;$// ; s/\$\{rootdir}/./g ; s/^([ ]*).* [|]{2} /\1/'
+  printf "\n\n"
+
+  has "$post_func" && "$post_func"
+  pause
+}
+
+do_step() {
+  local step_no="$1" func
+  func="do_${step_no}"
+
+  if ! valid_step ${step_no}; then
+    return
+  fi
+
+  eval "$func" || abort "Failed to do step ${step_no}."
+
+  if is_done ${step_no}; then
+    pause
+    return
+  fi
+
+  printf "\n\nYou have completed step %s .\n" ${step_no}
+  printf "To ensure you can see your changes, please\n"
+  printf "start a new terminal window and close this one.\n\n"
+
+  save ${step_no}
+
+  exit
+}
+
+help() { : ; }
+
+menu() {
+  local reply step_no
+
+  printf "commands: (s)how, (x)check, (u)ncheck, (r)eset, (d)o, (q)uit\n"
+  printf "#> "
+  read -r reply step_no
+
+  case "${reply}" in
+      '')                                   ;;
+      s|show)       show_step $step_no      ;;
+      x|check)      check $step_no          ;;
+      u|uncheck)    uncheck $step_no        ;;
+      r|reset)      reset_progress          ;;
+      d|do)         do_step $step_no        ;;
+      '?'|help)   help "$step_no"           ;;
+      q|quit)     exit                      ;;
+  esac
+}
+
+main() {
+  local state_file=~/.local/state/setup-mac
+
+  args ${1:+"$@"}
+  init
+
+  while : ; do
+
+      clear
+      checklist
+      menu
+  done
+
+}
+
+main ${1:+"$@"}

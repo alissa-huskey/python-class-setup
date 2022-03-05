@@ -1,0 +1,8 @@
+create shell startup file
+install xcode
+install homebrew
+install python prerequisites
+install python
+install poetry
+install extra packages
+
