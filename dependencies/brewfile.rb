@@ -8,19 +8,7 @@ cask "visual-studio-code"                 # editor
 brew "git"                                # most recent git version
 cask "discord"                            # Discord app
 brew "mas"                                # app store CLI tool
-brew "pyenv"                              # install and manage Python versions
-brew "autoenv"                            # automatically source .env files on cd
 brew "bat"                                # command line file viewer with syntax highlighting
 
 tap "alissa-huskey/autoenv" "https://github.com/alissa-huskey/autoenv"
 brew "alissa-huskey/autoenv/autoenv-revert"
-
-# python dependencies
-# -------------------
-
-brew "zlib"
-brew "openssl"
-brew "readline"
-brew "xz"
-brew "bzip2"
-
