@@ -20,7 +20,8 @@ is_always_ask() {
 
 # print help
 usage() {
-  cat <<-EOF
+  local doc
+  define doc <<-EOF
 
   make-shellrc -- generate shell startup file
 
@@ -35,8 +36,9 @@ usage() {
   -q, --quiet           Quiet mode   
   -n, --dry-run         Do not make changes, just preview them
   -h, --help            Show this help information
-
 EOF
+
+  printf "\n%s\n\n" "$doc"
 }
 
 # replace mktemp command if missing

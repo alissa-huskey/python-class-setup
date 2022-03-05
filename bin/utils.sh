@@ -28,9 +28,19 @@ info() {
   printf "\033[34m>\033[0m %s\n" "${*}"
 }
 
+# print an header line
+header() {
+  printf "\n\033[1m%s\033[0m\n\n" "${*}"
+}
+
 # succeeds if command is available
 has() {
   command -v $1 > /dev/null
+}
+
+# read a heredoc into a variable
+define() {
+   IFS=$'\n' read -r -d '' ${1} || true
 }
 
 # print a variable name and value

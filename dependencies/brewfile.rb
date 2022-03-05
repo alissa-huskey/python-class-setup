@@ -9,6 +9,3 @@ brew "git"                                # most recent git version
 cask "discord"                            # Discord app
 brew "mas"                                # app store CLI tool
 brew "bat"                                # command line file viewer with syntax highlighting
-
-# tap "alissa-huskey/autoenv" "https://github.com/alissa-huskey/autoenv"
-# brew "alissa-huskey/autoenv/autoenv-revert"
