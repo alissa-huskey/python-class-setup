@@ -152,7 +152,7 @@ is_done_6() {
 
 # install poetry
 do_6() {
-  curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+  curl -sSL https://install.python-poetry.org | python3 -
 }
 
 # install extra packages
@@ -297,7 +297,7 @@ do_step() {
 
   eval "$func" || abort "Failed to do step ${step_no}."
 
-  if is_done ${step_no}; then
+  if is_marked_done ${step_no}; then
     pause
     return
   fi
